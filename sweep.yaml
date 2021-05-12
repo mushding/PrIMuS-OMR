@@ -1,0 +1,48 @@
+name: PrIMuS_sweep
+project: PrIMuS
+program: PrIMuS.py
+
+command:
+  - ${env}
+  - python3
+  - ${program}
+  - --save-path
+  - sweep
+  - --is-sweep
+  - true
+  - ${args}
+
+method: bayes
+metric:
+  name: "Testing loss"
+  goal: minimize
+
+early_terminate:
+  type: hyperband
+  min_iter: 12
+
+parameters:
+  epochs:
+    distribution: constant
+    value: 100
+  batch-size:
+    distribution: categorical
+    values: [8, 16, 32, 64]
+  lr:
+    distribution: uniform
+    max: 0.001
+    min: 0.00001
+  dropout:
+    distribution: uniform
+    max: 1
+    min: 0.05
+  rnn-hidden:
+    distribution: categorical
+    values: [128, 256, 512]
+  leaky-relu: 
+    distribution: uniform
+    max: 0.3
+    min: 0
+  optimizer:
+    distribution: categorical
+    values: ["Adam", "Adadelta", "RMSprop"]
