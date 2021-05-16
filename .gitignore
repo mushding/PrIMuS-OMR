@@ -1,5 +1,6 @@
 /model
 /wandb
+/midi
 /dataset/package
 /dataset_predict/package
 test.py

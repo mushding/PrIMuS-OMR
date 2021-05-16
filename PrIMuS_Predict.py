@@ -2,6 +2,8 @@ from tqdm import tqdm
 import argparse
 import os
 from PIL import Image
+import numpy as np
+from result_to_midi import result_to_midi
 
 import torch
 import torch.utils.data as Data
@@ -125,8 +127,15 @@ def main():
             log_probs = F.log_softmax(logits, dim=2)
 
             preds = ctc_decode(log_probs, method=args.decode_method, beam_size=args.beam_size, label2char=index_to_name)
+            
+            # list to string & remove file type (ex: .png) / list to flatten
+            name = ''.join(name).split('.')[0]
+            preds = np.array(preds).flatten()
+
             print("Predict filename -> {}".format(name))
             print(preds)
+
+            result_to_midi(preds, name)
 
             pbar.update(1)
         pbar.close()
