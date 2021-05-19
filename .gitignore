@@ -1,7 +1,8 @@
 /model
 /wandb
 /midi
-/dataset/package
+/dataset/PrIMuS
+/dataset/Camera-PrIMuS
 /dataset_predict/package
 test.py
 

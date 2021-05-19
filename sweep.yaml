@@ -1,4 +1,4 @@
-name: PrIMuS_sweep
+name: PrIMuS_sweep_resNet_PrIMuS
 project: PrIMuS
 program: PrIMuS.py
 
@@ -8,8 +8,11 @@ command:
   - ${program}
   - --save-path
   - sweep
+  - --wandb-tag
+  - ResNet-sweep PrIMuS
+  - --dataset
+  - PrIMuS
   - --is-sweep
-  - true
   - ${args}
 
 method: bayes
@@ -19,7 +22,7 @@ metric:
 
 early_terminate:
   type: hyperband
-  min_iter: 12
+  min_iter: 15
 
 parameters:
   epochs:
@@ -29,16 +32,18 @@ parameters:
     distribution: categorical
     values: [8, 16, 32, 64]
   lr:
-    distribution: uniform
-    max: 0.001
-    min: 0.00001
+    distribution: constant
+    value: 0.00005
+    # distribution: uniform
+    # max: 0.0001
+    # min: 0.000001
   dropout:
     distribution: uniform
     max: 1
     min: 0.05
   rnn-hidden:
     distribution: categorical
-    values: [128, 256, 512]
+    values: [128, 256, 512, 1024]
   leaky-relu: 
     distribution: uniform
     max: 0.3
@@ -46,3 +51,6 @@ parameters:
   optimizer:
     distribution: categorical
     values: ["Adam", "Adadelta", "RMSprop"]
+  # scheduler:
+  #   distribution: categorical
+  #   values: ["StepLR", "ReduceLROnPlateau"]

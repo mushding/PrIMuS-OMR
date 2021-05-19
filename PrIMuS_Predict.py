@@ -11,6 +11,8 @@ from torchvision import transforms
 import torch.nn.functional as F
 
 from PrIMuS_Network import PrIMuS_Network
+from PrIMuS_ResNet import ResNet_CRNN
+
 from PrIMuS_PredictDataset import PrIMuS_PredictDataset, PrIMuS_collate_fn, WidthPad
 from PrIMuS_CTCDecoder import ctc_decode
 
@@ -93,7 +95,7 @@ def main():
 
     # start init net
     print("====== start loading model... ======")
-    model = PrIMuS_Network(
+    model = ResNet_CRNN(
         args.rnn_hidden, 
         args.leaky_relu,
         num_class,

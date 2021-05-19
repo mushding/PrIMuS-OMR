@@ -7,7 +7,7 @@ from PIL import Image
 
 class PrIMuS_Dataset(Dataset):
     
-    def __init__(self, root, split, type, resize_height, transform):
+    def __init__(self, root, split, type, datasets, resize_height, transform):
 
         # set variable
         self.resize_height = resize_height
@@ -26,8 +26,13 @@ class PrIMuS_Dataset(Dataset):
         volcabulary_file.close()
         
         # imgs/label list
-        self.imgs_path_list = [os.path.join(root, "package", file_split, file_split + ".png") for file_split in self.split_list]
-        self.label_path_list = [os.path.join(root, "package", file_split, file_split + "." + type) for file_split in self.split_list]
+        self.imgs_path_list = []
+        self.label_path_list = []
+
+        # loop for all dataset list
+        for dataset in datasets:
+            self.imgs_path_list.extend([os.path.join(root, dataset, file_split, file_split + ".png") for file_split in self.split_list])
+            self.label_path_list.extend([os.path.join(root, dataset, file_split, file_split + "." + type) for file_split in self.split_list])
 
         # print data number
         print("{}: Total classfication -> {}".format(split, len(self.volcabulary_list)))
