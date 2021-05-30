@@ -216,5 +216,11 @@ def main():
                 wandb.save("PrIMuS_Model_{}_{}_{}_{}_{}_{}_{}.pt".format(args.epochs, args.batch_size, args.lr, args.dropout, args.rnn_hidden, args.leaky_relu, args.optimizer))
             prev_loss = train_loss
 
+    # save the last epoch
+    if args.sweep:
+        torch.save(model.state_dict(), os.path.join(model_path, "PrIMuS_Model_{}_{}_{}_{}_{}_{}_{}.pt".format(args.epochs, args.batch_size, args.lr, args.dropout, args.rnn_hidden, args.leaky_relu, args.optimizer)))
+    else:
+        torch.save(model.state_dict(), os.path.join(model_path, "PrIMuS_Model_final.pt"))
+
 if __name__ == "__main__":
     main()
