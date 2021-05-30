@@ -32,7 +32,6 @@ def train(model, device, train_loader, optimizer, criterion, epoch, log_interval
         loss.backward()
         optimizer.step()
 
-        batch_size = data.size(0)
         total_count += batch_size
 
         # print loss

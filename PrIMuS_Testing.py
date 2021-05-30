@@ -10,8 +10,6 @@ def test(model, device, test_loader, criterion, decode_method, beam_size):
 
     tot_count = 0
     tot_loss = 0
-    tot_correct = 0
-    wrong_cases = []
 
     max_iter = None
     pbar_total = max_iter if max_iter else len(test_loader)

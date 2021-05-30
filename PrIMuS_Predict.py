@@ -8,6 +8,7 @@ from result_to_midi import result_to_midi
 import torch
 import torch.utils.data as Data
 from torchvision import transforms
+from torch.nn import CTCLoss
 import torch.nn.functional as F
 
 from PrIMuS_Network import PrIMuS_Network
@@ -24,13 +25,14 @@ def main():
     
     # data setting
     parse.add_argument("--dataset-path", type=str, default="./dataset_predict")
+    parse.add_argument("--midi-path", type=str, default="./midi")
     parse.add_argument("--dataset-type", type=str, default="semantic")
     parse.add_argument("--resize-height", type=int, default=128)
 
     # model setting
     parse.add_argument("--batch-size", type=int, default=1)
     parse.add_argument("--leaky-relu", type=float, default=0.2)
-    parse.add_argument("--rnn-hidden", type=int, default=512)
+    parse.add_argument("--rnn-hidden", type=int, default=1024)
 
     # model save & validate setting
     parse.add_argument("--save-path-root", type=str, default="./model")
@@ -93,6 +95,10 @@ def main():
     # number of classfication (add blank + 1)
     num_class = predict_dataset.classfication_num()
 
+    # set CTC loss
+    criterion = CTCLoss(reduction='sum')
+    criterion.to(device)
+
     # start init net
     print("====== start loading model... ======")
     model = ResNet_CRNN(
@@ -119,29 +125,48 @@ def main():
     # set index to name dict
     index_to_name = predict_dataset.index_to_name()
 
+    # start batch predict (size is predict_loader (the file number in package))
+    tot_count = len(predict_loader)
+    tot_loss = 0
+
     with torch.no_grad():
         print('\n===== result =====')
-        for batch_idx, (data, name) in enumerate(predict_loader):
+        for batch_idx, (data, targets, target_lengths, name, xml_path) in enumerate(predict_loader):
             # load data
-            data = data.to(device)
+            data, targets, target_lengths = data.to(device), targets.to(device), target_lengths.to(device)
             
             logits = model(data)
             log_probs = F.log_softmax(logits, dim=2)
 
+            batch_size = data.size(0)
+            input_lengths = torch.LongTensor([logits.size(0)] * batch_size)
+            target_lengths = torch.flatten(target_lengths)
+
+            # set loss
+            loss = criterion(log_probs, targets, input_lengths, target_lengths)
+
+            # calculate total loss
+            tot_loss += loss.item()
+
+            # get ctc_decode predict sequence (final answer)
             preds = ctc_decode(log_probs, method=args.decode_method, beam_size=args.beam_size, label2char=index_to_name)
             
-            # list to string & remove file type (ex: .png) / list to flatten
+            print("Predict filename -> {}, Loss -> {}".format(name, loss.item()))
+            print(preds)
+
+            # xml_path list to string / list to string & remove file type (ex: .png) / list to flatten
+            xml_path = xml_path[0]
             name = ''.join(name).split('.')[0]
             preds = np.array(preds).flatten()
 
-            print("Predict filename -> {}".format(name))
-            print(preds)
-
-            result_to_midi(preds, name)
+            result_to_midi(preds, name, xml_path, args.midi_path)
 
             pbar.update(1)
         pbar.close()
 
+        # final print total loss
+        avg_loss = tot_loss / tot_count
+        print("Average Loss -> {}".format(avg_loss))
 
 
 if __name__ == '__main__':

@@ -105,12 +105,12 @@ def makeTimeSignature(value):
         ts = meter.TimeSignature(value)
     return ts
 
-def result_to_midi(note_list, score_name):
+def result_to_midi(note_list, score_name, xml_path, midi_path):
     
-    midi_dir = './midi'
-    midi_path = os.path.join(midi_dir, score_name + ".midi")
-    test_stream = stream.Stream()
-    test_measure = stream.Measure()
+    midi_path = os.path.join(midi_path, score_name + ".midi")
+
+    predict_part = stream.Part()
+    predict_measure = stream.Measure()
 
     for symbol in note_list:
         symbol_type, symbol_value = 0, 0
@@ -122,24 +122,39 @@ def result_to_midi(note_list, score_name):
             symbol_type = symbol.split('-')[0]
 
         if symbol_type == 'barline':
-            test_stream.append(test_measure)
-            test_measure = stream.Measure()
+            predict_part.append(predict_measure)
+            predict_measure = stream.Measure()
         elif symbol_type == 'clef':
-            test_stream.append(makeClef(symbol_value))
+            predict_part.append(makeClef(symbol_value))
         elif symbol_type == 'gracenote':
             pass
         elif symbol_type == 'keySignature':
-            test_stream.append(makeKeySignature(symbol_value))
+            predict_part.append(makeKeySignature(symbol_value))
         elif symbol_type == 'multirest':
             pass
         elif symbol_type == 'note':
-            test_measure.append(makeNote(symbol_value))
+            predict_measure.append(makeNote(symbol_value))
         elif symbol_type == 'rest':
-            test_measure.append(makeRest(symbol_value))
+            predict_measure.append(makeRest(symbol_value))
         elif symbol_type == 'tie':
             pass
         elif symbol_type == 'timeSignature':
-            test_stream.append(makeTimeSignature(symbol_value))
+            predict_part.append(makeTimeSignature(symbol_value))
 
-    test_stream.write('xml', fp=midi_path)
+    # switch note to correct key
+    # for n in predict_part.recurse().notes:  # we need to recurse because the notes are in measures...
+    #     nStep = n.pitch.step
+    #     rightAccidental = ks.accidentalByStep(nStep)
+    #     n.pitch.accidental = rightAccidental
+
+    # get ground truth xml
+    xml = converter.parse(xml_path)
+    correct_part = xml.getElementsByClass(stream.Part)[0]
+
+    # append part to score
+    score = stream.Score()
+    score.append(predict_part)
+    score.append(correct_part)
+
+    score.write('xml', fp=midi_path)
     # test_stream.show()
