@@ -22,7 +22,7 @@ def main():
     parse.add_argument("--batch-size", type=int, default=16, help="input batch size for training (default: 16)")
     parse.add_argument("--test-batch-size", type=int, default=16, help="input batch size for testing (default: 512)")
     parse.add_argument("--epochs", type=int, default=500, help="number of epochs to train (default: 64000)")
-    parse.add_argument("--lr", type=float, default=0.0000005, help="learning rate (default: 0.0005)")
+    parse.add_argument("--lr", type=float, default=0.0005, help="learning rate (default: 0.0005)")
     parse.add_argument("--log-interval", type=int, default=10, help="how many batches to wait before logging training status")
     parse.add_argument("--dropout", type=float, default=0.5)
     parse.add_argument("--rnn-hidden", type=int, default=512)
@@ -137,7 +137,7 @@ def main():
 
     print("====== start loading model... ======")
     # start init net
-    model = ResNet_CRNN(
+    model = PrIMuS_Network(
         args.rnn_hidden, 
         args.leaky_relu,
         num_class,
