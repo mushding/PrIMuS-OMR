@@ -6,7 +6,6 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torchvision import transforms
 
 from PrIMuS_Network import PrIMuS_Network
-from PrIMuS_ResNet import ResNet_CRNN
 
 from PrIMuS_Dataset import PrIMuS_Dataset, PrIMuS_collate_fn, WidthPad
 from PrIMuS_Training import train
