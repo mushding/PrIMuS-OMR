@@ -27,7 +27,7 @@ def main():
     parse.add_argument("--rnn-hidden", type=int, default=512)
     parse.add_argument("--leaky-relu", type=float, default=0.2)
     parse.add_argument("--optimizer", type=str, default="RMSprop")
-    parse.add_argument("--scheduler", type=str, default="StepLR")
+    parse.add_argument("--scheduler", type=str, default="ReduceLROnPlateau")
     parse.add_argument("--checkpoint-path", type=str, default=None)
 
     # is variables 
@@ -162,7 +162,7 @@ def main():
     # set lr decrease scheduler
     scheduler = 0
     if args.scheduler == "StepLR":
-        scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
     elif args.scheduler == "CosineAnnealingLR":
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
     elif args.scheduler == "ReduceLROnPlateau":
@@ -189,6 +189,7 @@ def main():
             dropout=args.dropout,
             rnn_hidden=args.rnn_hidden,
             optimizer=args.optimizer,
+            scheduler=args.scheduler,
             dataset="PrIMuS",
             architecture="CRNN"
         )
@@ -197,7 +198,9 @@ def main():
     # start training for epoch
     for epoch in range(1, args.epochs + 1):
         train_loss = train(model, device, train_loader, optimizer, criterion, epoch, args.log_interval, args.dry_run)
-        # scheduler.step()
+        
+        # lr scheduler start (calculate)
+        scheduler.step(train_loss)
 
         # every valid_interval (5) test
         evaluation = test(model, device, test_loader, criterion, args.decode_method, args.beam_size)
