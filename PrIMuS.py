@@ -189,6 +189,7 @@ def main():
             dropout=args.dropout,
             rnn_hidden=args.rnn_hidden,
             optimizer=args.optimizer,
+            leaky_relu=args.leaky_relu,
             dataset="PrIMuS",
             architecture="CRNN"
         )

@@ -1,10 +1,3 @@
-from tqdm import tqdm
-import argparse
-import os
-from PIL import Image
-import numpy as np
-from result_to_midi import result_to_midi
-
 import torch
 import torch.utils.data as Data
 from torchvision import transforms
@@ -13,8 +6,13 @@ import torch.nn.functional as F
 
 from PrIMuS_Network import PrIMuS_Network
 
-from PrIMuS_PredictDataset import PrIMuS_PredictDataset, PrIMuS_collate_fn, WidthPad
+from PrIMuS_Dataset import PrIMuS_Dataset, PrIMuS_collate_fn, WidthPad
 from PrIMuS_CTCDecoder import ctc_decode
+
+import argparse
+import os
+import numpy as np
+from tqdm import tqdm
 
 def min_dis(target, source):
     target = [i for i in target]
@@ -52,16 +50,15 @@ def main():
     parse.add_argument("--model-index", type=int, required=True)
     
     # data setting
-    parse.add_argument("--dataset-path", type=str, default="./dataset_predict")
-    parse.add_argument("--midi-path", type=str, default="./midi")
+    parse.add_argument("--dataset-path", type=str, default="./dataset")
     parse.add_argument("--dataset-type", type=str, default="semantic")
     parse.add_argument("--resize-height", type=int, default=128)
+    parse.add_argument("--dataset", type=str, required=True, nargs='+')
 
     # model setting
     parse.add_argument("--batch-size", type=int, default=1)
     parse.add_argument("--leaky-relu", type=float, default=0.2)
-    parse.add_argument("--rnn-hidden", type=int, default=1024)
-    parse.add_argument("--dataset", type=str, required=True, nargs='+')
+    parse.add_argument("--rnn-hidden", type=int, default=256)
 
     # model save & validate setting
     parse.add_argument("--save-path-root", type=str, default="./model")
@@ -87,7 +84,7 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
 
     # set predict dict
-    predict_kwargs = {
+    evaluate_kwargs = {
         'batch_size': args.batch_size,
         'collate_fn': PrIMuS_collate_fn
     }
@@ -98,7 +95,7 @@ def main():
             'num_workers': 0,
             'pin_memory': True,
         }
-        predict_kwargs.update(cuda_kwargs)
+        evaluate_kwargs.update(cuda_kwargs)
 
     # create transrform
     transform = transforms.Compose([
@@ -106,35 +103,33 @@ def main():
         WidthPad(),
         transforms.ToTensor(),
     ])
-
-    # create predict dataset
-    print("====== start loading dataset... ======")
-    predict_dataset = PrIMuS_PredictDataset(
+    
+    evaluate_dataset = PrIMuS_Dataset(
         root=args.dataset_path, 
-        split="predict",
+        split="test",
         type=args.dataset_type,
         datasets=args.dataset,
         resize_height=args.resize_height,
         transform=transform
     )
 
-    # create predict dataloader
-    predict_loader = Data.DataLoader(predict_dataset, **predict_kwargs)
+    # create train/evaluate dataloader
+    evaluate_loader = Data.DataLoader(evaluate_dataset, **evaluate_kwargs)
     print("====== end loading dataset... ======")
 
     # number of classfication (add blank + 1)
-    num_class = predict_dataset.classfication_num()
+    num_class = evaluate_dataset.classfication_num()
 
     # set CTC loss
     criterion = CTCLoss(reduction='sum')
     criterion.to(device)
 
-    # start init net
     print("====== start loading model... ======")
+    # start init net
     model = PrIMuS_Network(
         args.rnn_hidden, 
         args.leaky_relu,
-        num_class,
+        num_class + 1,
     )
 
     # load model
@@ -149,14 +144,14 @@ def main():
     print("====== start predict... ======")
     model.eval()
 
-    # set progress bar
-    pbar = tqdm(total=len(predict_loader), desc="Predict")
-
     # set index to name dict
-    index_to_name = predict_dataset.index_to_name()
+    index_to_name = evaluate_dataset.index_to_name()
 
-    # start batch predict (size is predict_loader (the file number in package))
-    tot_count = len(predict_loader)
+    # set progress bar
+    pbar = tqdm(total=len(evaluate_loader), desc="Predict")
+
+    # start batch predict (size is evaluate_loader (the file number in package))
+    tot_count = len(evaluate_loader)
     tot_loss = 0
 
     # init sequence/symbol error rate
@@ -164,14 +159,14 @@ def main():
 
     with torch.no_grad():
         print('\n===== result =====')
-        for batch_idx, (data, targets, target_lengths, name, xml_path) in enumerate(predict_loader):
+        for batch_idx, data in enumerate(evaluate_loader):
             # load data
-            data, targets, target_lengths = data.to(device), targets.to(device), target_lengths.to(device)
+            images, targets, target_lengths = [d.to(device) for d in data]
             
-            logits = model(data)
+            logits = model(images)
             log_probs = F.log_softmax(logits, dim=2)
 
-            batch_size = data.size(0)
+            batch_size = images.size(0)
             input_lengths = torch.LongTensor([logits.size(0)] * batch_size)
             target_lengths = torch.flatten(target_lengths)
 
@@ -182,23 +177,16 @@ def main():
             tot_loss += loss.item()
 
             # get ctc_decode predict sequence (final answer)
-            preds = ctc_decode(log_probs, method=args.decode_method, beam_size=args.beam_size, label2char=index_to_name)
-            
-            print("Predict filename -> {}, Loss -> {}".format(name, loss.item()))
-            print(preds)
+            preds = ctc_decode(log_probs, method=args.decode_method, beam_size=args.beam_size)
 
-            # xml_path list to string / list to string & remove file type (ex: .png) / list to flatten
-            xml_path = xml_path[0]
-            name = ''.join(name).split('.')[0]
+            # list to flatten
             preds = np.array(preds).flatten()
-
-            # result_to_midi(preds, name, xml_path, args.midi_path)
-
+            
             # sum error matrics
             sequence_error, symbol_error = error_matric(preds, targets)
             sequence_error_num += sequence_error
             symbol_error_num += symbol_error
-            
+
             pbar.update(1)
         pbar.close()
 
@@ -211,7 +199,6 @@ def main():
         # final print total loss
         avg_loss = tot_loss / tot_count
         print("Average Loss -> {}".format(avg_loss))
-
 
 if __name__ == '__main__':
     main()
