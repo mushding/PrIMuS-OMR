@@ -129,7 +129,7 @@ def main():
     model = PrIMuS_Network(
         args.rnn_hidden, 
         args.leaky_relu,
-        num_class + 1,
+        num_class,
     )
 
     # load model

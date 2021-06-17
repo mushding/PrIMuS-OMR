@@ -60,8 +60,7 @@ def main():
     # model setting
     parse.add_argument("--batch-size", type=int, default=1)
     parse.add_argument("--leaky-relu", type=float, default=0.2)
-    parse.add_argument("--rnn-hidden", type=int, default=1024)
-    parse.add_argument("--dataset", type=str, required=True, nargs='+')
+    parse.add_argument("--rnn-hidden", type=int, default=256)
 
     # model save & validate setting
     parse.add_argument("--save-path-root", type=str, default="./model")
@@ -113,7 +112,6 @@ def main():
         root=args.dataset_path, 
         split="predict",
         type=args.dataset_type,
-        datasets=args.dataset,
         resize_height=args.resize_height,
         transform=transform
     )
@@ -198,13 +196,14 @@ def main():
             sequence_error, symbol_error = error_matric(preds, targets)
             sequence_error_num += sequence_error
             symbol_error_num += symbol_error
+            print(sequence_error_num, symbol_error_num)
             
             pbar.update(1)
         pbar.close()
 
         # calculate average error matrics
-        sequence_error_rate = sequence_error_num / len(evaluate_loader)
-        symbol_error_rate = symbol_error_num / len(evaluate_loader)
+        sequence_error_rate = sequence_error_num / len(predict_loader)
+        symbol_error_rate = symbol_error_num / len(predict_loader)
         print("Sequence Error Rate -> {}".format(sequence_error_rate))
         print("Symbol Error Rate -> {}".format(symbol_error_rate))
 
