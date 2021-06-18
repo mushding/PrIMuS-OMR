@@ -16,35 +16,6 @@ from PrIMuS_ResNet import ResNet_CRNN
 from PrIMuS_PredictDataset import PrIMuS_PredictDataset, PrIMuS_collate_fn, WidthPad
 from PrIMuS_CTCDecoder import ctc_decode
 
-def min_dis(target, source):
-    target = [i for i in target]
-    source = [i for i in source]
-    target.insert(0, "#")
-    source.insert(0, "#")
-    sol = np.zeros((len(source), len(target)))
-
-    sol[0] = [i for i in range(len(target))]
-    sol[:, 0] = [i for i in range(len(source))]
-
-    for c in range(1, len(target)):
-        for r in range(1, len(source)):
-            if target[c] != source[r]:
-                sol[r, c] = min(sol[r - 1, c], sol[r, c - 1]) + 1
-            else:
-                sol[r, c] = sol[r - 1, c - 1]
-
-    return sol[len(source) - 1, len(target) - 1]
-
-def error_matric(preds, targets):
-    distance = min_dis(preds, targets)
-    sequence_error, symbol_error = 0, 0
-
-    if distance != 0:
-        sequence_error = 1
-        symbol_error = distance / len(targets)
-
-    return sequence_error, symbol_error
-
 def main():
     parse = argparse.ArgumentParser(description="PrIMuS predict")
     

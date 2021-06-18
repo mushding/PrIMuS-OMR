@@ -12,12 +12,36 @@ from PrIMuS_CTCDecoder import ctc_decode
 import argparse
 import os
 from tqdm import tqdm
+import numpy as np
 
-def sequence_error():
-    pass
+def min_dis(target, source):
+    target = [i for i in target]
+    source = [i for i in source]
+    target.insert(0, "#")
+    source.insert(0, "#")
+    sol = np.zeros((len(source), len(target)))
 
-def symbol_error():
-    pass
+    sol[0] = [i for i in range(len(target))]
+    sol[:, 0] = [i for i in range(len(source))]
+
+    for c in range(1, len(target)):
+        for r in range(1, len(source)):
+            if target[c] != source[r]:
+                sol[r, c] = min(sol[r - 1, c], sol[r, c - 1]) + 1
+            else:
+                sol[r, c] = sol[r - 1, c - 1]
+
+    return sol[len(source) - 1, len(target) - 1]
+
+def error_matric(preds, targets):
+    distance = min_dis(preds, targets)
+    sequence_error, symbol_error = 0, 0
+
+    if distance != 0:
+        sequence_error = 1
+        symbol_error = distance / len(targets)
+
+    return sequence_error, symbol_error
 
 def main():
     parse = argparse.ArgumentParser(description="PrIMuS predict")
@@ -96,6 +120,10 @@ def main():
     # number of classfication (add blank + 1)
     num_class = evaluate_dataset.classfication_num()
 
+    # set CTC loss
+    criterion = CTCLoss(reduction='sum')
+    criterion.to(device)
+
     print("====== start loading model... ======")
     # start init net
     model = ResNet_CRNN(
@@ -123,6 +151,12 @@ def main():
     tot_count = len(evaluate_loader)
     tot_loss = 0
 
+    # set index to name dict
+    index_to_name = evaluate_dataset.index_to_name()
+
+    # init sequence/symbol error rate
+    sequence_error_num, symbol_error_num = 0, 0
+
     with torch.no_grad():
         print('\n===== result =====')
         for batch_idx, data in enumerate(evaluate_loader):
@@ -143,21 +177,26 @@ def main():
             tot_loss += loss.item()
 
             # get ctc_decode predict sequence (final answer)
-            preds = ctc_decode(log_probs, method=args.decode_method, beam_size=args.beam_size, label2char=index_to_name)
-            
-            print("Predict filename -> {}, Loss -> {}".format(name, loss.item()))
-            print(preds)
-
-            # xml_path list to string / list to string & remove file type (ex: .png) / list to flatten
-            xml_path = xml_path[0]
-            name = ''.join(name).split('.')[0]
+            preds = ctc_decode(log_probs, method=args.decode_method, beam_size=args.beam_size)
             preds = np.array(preds).flatten()
             
-            sequence_error(preds, targets)
-            symbol_error(preds, targets)
+            # result_to_midi(preds, name, xml_path, args.midi_path)
 
+            # sum error matrics
+            sequence_error, symbol_error = error_matric(preds, targets)
+            sequence_error_num += sequence_error
+            symbol_error_num += symbol_error
+            print(sequence_error_num, symbol_error_num)
+            print(preds, targets)
+            
             pbar.update(1)
         pbar.close()
+
+        # calculate average error matrics
+        sequence_error_rate = sequence_error_num / len(evaluate_dataset)
+        symbol_error_rate = symbol_error_num / len(evaluate_dataset)
+        print("Sequence Error Rate -> {}".format(sequence_error_rate))
+        print("Symbol Error Rate -> {}".format(symbol_error_rate))
 
         # final print total loss
         avg_loss = tot_loss / tot_count
