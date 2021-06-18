@@ -129,7 +129,7 @@ def main():
     model = PrIMuS_Network(
         args.rnn_hidden, 
         args.leaky_relu,
-        num_class + 1,
+        num_class,
     )
 
     # load model
@@ -187,7 +187,7 @@ def main():
             sequence_error_num += sequence_error
             symbol_error_num += symbol_error
             print(sequence_error_num, symbol_error_num)
-            print((preds, targets))
+            print(preds, targets)
 
             pbar.update(1)
         pbar.close()
