@@ -186,8 +186,8 @@ def main():
             sequence_error, symbol_error = error_matric(preds, targets)
             sequence_error_num += sequence_error
             symbol_error_num += symbol_error
-            print(sequence_error_num, symbol_error_num)
-            print(preds, targets)
+            # print(sequence_error_num, symbol_error_num)
+            # print(preds, targets)
             
             pbar.update(1)
         pbar.close()
